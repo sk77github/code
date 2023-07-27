@@ -16,3 +16,107 @@ In this command, we're using the `SET` command to set a value for a specific key
 Remember to ensure that your JSON string is properly formatted and escaped to avoid any issues with special characters.
 
 ---------------------------------------------------------------------------------------------------------------------------------------------------------
+now please write a golang program to read data from redis and insert data into mysql.the data in redis is a string type and the key is a timestamp string ,the value is a k,v json like this redis-cli SET  "1690372999""{\"1c6f5851-57af-4508-9d82-f48581394a10\": \"action2\"}"  the mysql table struct is:CREATE TABLE `action_log_data` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `timestamp_column` timestamp NOT NULL,
+  `uuid` char(36) COLLATE utf8mb4_general_ci NOT NULL,
+  `action_log_column` text COLLATE utf8mb4_general_ci NOT NULL,
+  `action_number` int NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB   so we need to redis timestamp key into mysql timestamp_column ,json uuid k insert into mysql uuid column , json action2 v insert into action_log_column. this golang program will be a daemon process and read data from redis use timestamp key ,if there is no data to read the process is wating,when redis have data the process read it and insert it into mysql
+
+ChatGPT
+Sure! Below is a Go program that acts as a daemon process, continuously reading data from Redis and inserting it into the MySQL table as described:
+
+First, ensure you have the necessary packages installed:
+
+bash
+Copy code
+go get github.com/go-redis/redis/v8
+go get github.com/go-sql-driver/mysql
+Then, you can use the following Go code:
+
+go
+Copy code
+package main
+
+import (
+    "encoding/json"
+    "fmt"
+    "time"
+
+    "github.com/go-redis/redis/v8"
+    "database/sql"
+    "log"
+
+    _ "github.com/go-sql-driver/mysql"
+)
+
+const (
+    redisAddr     = "localhost:6379" // Redis server address
+    redisPassword = ""              // Redis server password (if applicable)
+    redisDB       = 0               // Redis database number
+
+    mysqlDSN = "username:password@tcp(localhost:3306)/dbname" // Replace with your MySQL DSN
+)
+
+type ActionData struct {
+    UUID  string `json:"uuid"`
+    Value string `json:"value"`
+}
+
+func main() {
+    // Connect to Redis
+    rdb := redis.NewClient(&redis.Options{
+        Addr:     redisAddr,
+        Password: redisPassword,
+        DB:       redisDB,
+    })
+
+    // Connect to MySQL
+    db, err := sql.Open("mysql", mysqlDSN)
+    if err != nil {
+        log.Fatal(err)
+    }
+    defer db.Close()
+
+    // Start the daemon process
+    for {
+        // Read data from Redis using BLPOP with a timeout of 0 (blocking until data is available)
+        ctx := rdb.Context()
+        result, err := rdb.BLPop(ctx, 0, "timestamp_key").Result()
+        if err != nil {
+            log.Println("Error reading from Redis:", err)
+            continue
+        }
+
+        // Extract the timestamp and JSON data from the result
+        timestamp := result[1]
+        jsonData := result[1]
+
+        // Parse JSON data into ActionData struct
+        var actionData ActionData
+        if err := json.Unmarshal([]byte(jsonData), &actionData); err != nil {
+            log.Println("Error parsing JSON data:", err)
+            continue
+        }
+
+        // Insert data into MySQL table
+        insertStmt := "INSERT INTO action_log_data (timestamp_column, uuid, action_log_column, action_number) VALUES (?, ?, ?, ?)"
+        _, err = db.Exec(insertStmt, timestamp, actionData.UUID, actionData.Value, 2) // Replace '2' with the actual action number
+        if err != nil {
+            log.Println("Error inserting into MySQL:", err)
+            continue
+        }
+
+        fmt.Println("Inserted data into MySQL successfully.")
+    }
+}
+Please replace the placeholders in the code with your actual Redis and MySQL connection details. This program will continuously read data from Redis, parse the JSON data, and insert it into the MySQL table. The process will wait and block until there is data available in Redis, and once data is received, it will be inserted into MySQL.
+
+
+
+
+
+
+
