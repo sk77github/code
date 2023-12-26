@@ -1,0 +1,33 @@
+1，把MySQL数据库中的所有表导出，每个表导成一个csv文件，不包括系统库里的表
+#!/bin/bash
+
+# MySQL credentials
+MYSQL_USER="your_username"
+MYSQL_PASS="your_password"
+MYSQL_HOST="your_host"
+
+# Exclude databases that you do not want to dump
+EXCLUDED_DATABASES="'information_schema','mysql','performance_schema','sys'"
+
+# MySQL command prefix
+MYSQL_CMD="mysql -u $MYSQL_USER -p$MYSQL_PASS -h $MYSQL_HOST -s -N"
+
+# Get a list of databases
+databases=`$MYSQL_CMD -e "SHOW DATABASES WHERE \`Database\` NOT IN ($EXCLUDED_DATABASES);"`
+
+# Loop through each database
+for db in $databases; do
+    echo "Dumping tables from database: $db"
+    
+    # Get a list of tables from current database
+    tables=`$MYSQL_CMD -e "SHOW TABLES FROM $db"`
+
+    # Loop through each table
+    for table in $tables; do
+        echo "Dumping table: $db.$table"
+        # Dump table data to a CSV file
+        $MYSQL_CMD -e "SELECT * FROM $db.$table" > "${db}_${table}.csv"
+    done
+done
+
+echo "Data dump completed."
