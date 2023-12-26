@@ -31,3 +31,15 @@ for db in $databases; do
 done
 
 echo "Data dump completed."
+---------------------------------------------------------------------------------------------------------------------------------------------
+2, 用crontab定时清楚某个目录下所有目录的子文件
+cat clean_log.sh 
+#!/bin/bash
+
+# Change to the /home/my directory
+cd /home/my || exit 1
+
+for i in back  config  gateway  web ; do
+    echo "Cleaning logs in $i/log"
+    sudo find $i/log -type f -mtime +1 -exec rm -v {} \;
+done
